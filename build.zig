@@ -30,7 +30,10 @@ pub fn build(b: *std.Build) void {
     exe.linkLibC();
 
     exe.root_module.addAnonymousImport("glfw", .{
-       .root_source_file = b.path("src/glfw.zig"), 
+       .root_source_file = b.path("lib/glfw.zig"), 
+    });
+    exe.root_module.addAnonymousImport("cairo", .{
+       .root_source_file = b.path("lib/cairo.zig"), 
     });
     
     const gl_bindings = @import("zigglgen").generateBindingsModule(b, .{

@@ -134,7 +134,7 @@ pub const Context = struct {
     }
 };
 
-const cairo = @import("cairo.zig");
+const cairo = @import("cairo");
 
 pub const ImageSurface = struct {
     const Self = @This();
