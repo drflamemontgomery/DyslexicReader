@@ -29,6 +29,6 @@ fn mainLoop(allocator: std.mem.Allocator, window: *Window) !void {
         window.graphics.rectangle(32, 32, 32, 32);
         window.graphics.fill();
 
-        window.update();
+        try window.update();
     }
 }

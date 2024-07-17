@@ -54,7 +54,7 @@ pub const Window = struct {
     }
 
     pub fn resize(self: *Self, width: u32, height: u32) !void {
-        gl.Viewport(0, 0, width, height);
+        gl.Viewport(0, 0, @intCast(width), @intCast(height));
         gl.MatrixMode(gl.PROJECTION);
         gl.LoadIdentity();
         gl.Ortho(0.0, 1.0, 0.0, 1.0, -1.0, 1.0);
@@ -64,13 +64,13 @@ pub const Window = struct {
         gl.DeleteTextures(1, @ptrCast(&_internal_texture_id));
         gl.GenTextures(1, @ptrCast(&_internal_texture_id));
         gl.BindTexture(gl.TEXTURE_RECTANGLE_ARB, _internal_texture_id);
-        gl.TexImage2D(gl.TEXTURE_RECTANGLE_ARB, 0, gl.RGBA, width, height, 0, gl.BGRA, gl.UNSIGNED_BYTE, null);
+        gl.TexImage2D(gl.TEXTURE_RECTANGLE_ARB, 0, gl.RGBA, @intCast(width), @intCast(height), 0, gl.BGRA, gl.UNSIGNED_BYTE, null);
         gl.TexEnvi(gl.TEXTURE_ENV, gl.TEXTURE_ENV_MODE, gl.DECAL);
 
         try self.graphics.resize(width, height);
     }
 
-    pub fn update(self: Self) void {
+    pub fn update(self: *Self) !void {
         gl.MatrixMode(gl.MODELVIEW);
         gl.LoadIdentity();
         gl.Clear(gl.COLOR_BUFFER_BIT);
@@ -100,6 +100,13 @@ pub const Window = struct {
         gl.PopMatrix();
         self.window.swapBuffers();
         glfw.pollEvents();
+
+        const frame_size = self.window.getFrameSize();
+        const width:u32 = frame_size.right - frame_size.left;
+        const height:u32 = frame_size.bottom - frame_size.top;
+        if(width == self.graphics.surface.width and height == self.graphics.surface.height) return;
+
+        try self.resize(width, height);
     }
 
     pub fn shouldClose(self: Self) bool {

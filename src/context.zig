@@ -28,14 +28,16 @@ pub const ImageSurface = struct {
     }
 
     pub fn resize(self: *Self, width: u32, height: u32) !void {
+        if(width == 0 or height == 0) return;
         self.width = width;
         self.height = height;
         self.destroy();
 
         self.data = try self.allocator.alloc(u32, @intCast(width * height));
         errdefer self.allocator.free(self.data);
+        
 
-        self.surface = cairo.imageSurfaceCreateForData(@ptrCast(&self.data[0]), cairo.FORMAT_ARGB32, width, height, 4 * width) orelse return Err.FAILED_TO_CREATE_SURFACE;
+        self.surface = cairo.imageSurfaceCreateForData(@ptrCast(&self.data[0]), cairo.FORMAT_ARGB32, @intCast(width), @intCast(height), @intCast(4 * width)) orelse return Err.FAILED_TO_CREATE_SURFACE;
     }
 
     pub fn destroy(self: Self) void {
