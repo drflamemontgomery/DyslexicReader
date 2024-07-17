@@ -2,6 +2,7 @@ const std = @import("std");
 const glfw = @import("glfw");
 const gl = @import("gl");
 const context = @import("context.zig");
+const ui = @import("ui/ui.zig");
 
 var _internal_texture_id: c_uint = 0;
 var gl_procs: gl.ProcTable = undefined;
@@ -16,6 +17,7 @@ pub const Window = struct {
     var current: ?*Self = null;
 
     window: glfw.Window,
+    ctx: context.Context,
     graphics: context.Graphics,
 
     pub fn init() Err!void {
@@ -45,8 +47,10 @@ pub const Window = struct {
         gl.Enable(gl.TEXTURE_RECTANGLE_ARB);
     
         const graphics = try context.Graphics.new(allocator, width, height);
+        const ctx = try context.Context.new(allocator);
         const self = Self{
             .window = window,
+            .ctx = ctx,
             .graphics = graphics,
         };
 
@@ -100,6 +104,8 @@ pub const Window = struct {
         gl.PopMatrix();
         self.window.swapBuffers();
         glfw.pollEvents();
+
+        try self.ctx.update();
 
         const frame_size = self.window.getFramebufferSize();
         if(frame_size.width == self.graphics.surface.width and frame_size.height == self.graphics.surface.height) return;

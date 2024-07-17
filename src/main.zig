@@ -21,7 +21,13 @@ pub fn main() !void {
 }
 
 fn mainLoop(allocator: std.mem.Allocator, window: *Window) !void {
-    _ = allocator;
+    const ui = @import("ui/ui.zig");
+    const text = ui.Text.T.new(allocator, null, "Hello World!");
+    var textComponent = text.any();
+    try window.ctx.children.append(&textComponent);
+
+    std.debug.print("children length => {}\n", .{window.ctx.children.items.len});
+
     while (!window.shouldClose()) {
         window.graphics.setSourceRGB(0, 0, 0);
         window.graphics.clear();

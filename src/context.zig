@@ -1,5 +1,61 @@
 const std = @import("std");
 const cairo = @import("cairo");
+const Component = @import("ui/ui.zig").Component;
+const AnyComponent = @import("ui/ui.zig").AnyComponent;
+
+pub const Context = struct {
+    const Self = @This();
+
+    children: std.ArrayList(*AnyComponent),
+
+    pub fn new(allocator: std.mem.Allocator) !Self {
+        return .{
+            .children = std.ArrayList(*AnyComponent).init(allocator),
+        };
+    }
+
+    pub fn _update(component: *AnyComponent) !void {
+        for(component.children.items) |child| {
+            try _update(child);
+        } 
+        try component.update(component);
+    }
+
+    pub fn update(self: Self) anyerror!void {
+        for (self.children.items, 0..) |child, i| {
+            std.debug.print("Update Child {}\n", .{i});
+            try _update(child);
+        }
+    }
+
+    pub fn sync(self: Self, graphics: *Graphics) anyerror!void {
+        for (self.children.items) |child| {
+            try child.sync(child, graphics);
+        }
+    }
+
+    pub fn any(self: *Self) AnyComponent {
+        return .{
+            .context = @ptrCast(self),
+            .parent = null,
+            .children = self.children,
+            .invalid = false,
+
+            .update = typeErasedUpdateFn,
+            .sync = typeErasedSyncFn,
+        };
+    }
+
+    fn typeErasedUpdateFn(ptr: *const anyopaque) anyerror!void {
+        const self: *const Self = @alignCast(@ptrCast(ptr));
+        try self.update();
+    }
+
+    fn typeErasedSyncFn(ptr: *const anyopaque, graphics: *Graphics) anyerror!void {
+        const self: *const Self = @alignCast(@ptrCast(ptr));
+        try self.sync(graphics);
+    }
+};
 
 pub const ImageSurface = struct {
     const Self = @This();
@@ -28,14 +84,13 @@ pub const ImageSurface = struct {
     }
 
     pub fn resize(self: *Self, width: u32, height: u32) !void {
-        if(width == 0 or height == 0) return;
+        if (width == 0 or height == 0) return;
         self.width = width;
         self.height = height;
         self.destroy();
 
         self.data = try self.allocator.alloc(u32, @intCast(width * height));
         errdefer self.allocator.free(self.data);
-        
 
         self.surface = cairo.imageSurfaceCreateForData(@ptrCast(&self.data[0]), cairo.FORMAT_ARGB32, @intCast(width), @intCast(height), @intCast(4 * width)) orelse return Err.FAILED_TO_CREATE_SURFACE;
     }
@@ -75,7 +130,7 @@ pub const Graphics = struct {
     }
 
     pub fn resize(self: *Self, width: u32, height: u32) Err!void {
-        if(width == 0 or height == 0) return;
+        if (width == 0 or height == 0) return;
         cairo.destroy(self.ctx);
         self.surface.resize(width, height) catch return Err.FAILED_TO_RESIZE_SURFACE;
         self.ctx = cairo.create(self.surface.surface) orelse return Err.FAILED_TO_CREATE_CAIRO_CONTEXT;
