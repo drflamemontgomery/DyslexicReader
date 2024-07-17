@@ -105,7 +105,7 @@ pub const Window = struct {
         self.window.swapBuffers();
         glfw.pollEvents();
 
-        try self.ctx.update();
+        try context.Context.update(&self.ctx.component);
 
         const frame_size = self.window.getFramebufferSize();
         if(frame_size.width == self.graphics.surface.width and frame_size.height == self.graphics.surface.height) return;

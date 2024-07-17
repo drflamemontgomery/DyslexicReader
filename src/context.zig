@@ -1,59 +1,43 @@
 const std = @import("std");
 const cairo = @import("cairo");
 const Component = @import("ui/ui.zig").Component;
-const AnyComponent = @import("ui/ui.zig").AnyComponent;
 
 pub const Context = struct {
     const Self = @This();
 
-    children: std.ArrayList(*AnyComponent),
+    component: Component,
 
-    pub fn new(allocator: std.mem.Allocator) !Self {
-        return .{
-            .children = std.ArrayList(*AnyComponent).init(allocator),
+    pub fn new(allocator: std.mem.Allocator) Self {
+        var self = Self{
+            .component = undefined,
         };
+        const component = Component{
+            .context = &self,
+            .children = std.ArrayList(*Component).init(allocator),
+            .update = update,
+            .sync = sync,
+        };
+
+        self.component = component;
+        return self;
     }
 
-    pub fn _update(component: *AnyComponent) !void {
-        for(component.children.items) |child| {
-            try _update(child);
-        } 
-        try component.update(component);
-    }
-
-    pub fn update(self: Self) anyerror!void {
-        for (self.children.items, 0..) |child, i| {
-            std.debug.print("Update Child {}\n", .{i});
-            try _update(child);
+    pub fn update(component: *Component) !void {
+        for (component.children.items) |child| {
+            try update(child);
+            try child.update(child);
         }
     }
 
-    pub fn sync(self: Self, graphics: *Graphics) anyerror!void {
-        for (self.children.items) |child| {
+    pub fn sync(component: *Component, graphics: *Graphics) anyerror!void {
+        for (component.children.items) |child| {
             try child.sync(child, graphics);
+            try sync(child, graphics);
         }
     }
 
-    pub fn any(self: *Self) AnyComponent {
-        return .{
-            .context = @ptrCast(self),
-            .parent = null,
-            .children = self.children,
-            .invalid = false,
-
-            .update = typeErasedUpdateFn,
-            .sync = typeErasedSyncFn,
-        };
-    }
-
-    fn typeErasedUpdateFn(ptr: *const anyopaque) anyerror!void {
-        const self: *const Self = @alignCast(@ptrCast(ptr));
-        try self.update();
-    }
-
-    fn typeErasedSyncFn(ptr: *const anyopaque, graphics: *Graphics) anyerror!void {
-        const self: *const Self = @alignCast(@ptrCast(ptr));
-        try self.sync(graphics);
+    pub fn destroy(self: *Self) void {
+        self.component.destroy();
     }
 };
 
@@ -173,4 +157,28 @@ test "resize_graphics" {
     try graphics.resize(320, 320);
     try testing.expect(graphics.surface.width == 320);
     try testing.expect(graphics.surface.height == 320);
+}
+
+test "create_root_component" {
+    var root = Context.new(std.testing.allocator);
+    defer root.destroy();
+
+    try testing.expect(root.component.children.items.len == 0);
+}
+
+test "create_text_components" {
+    const ui = @import("ui/ui.zig");
+
+    var root = Context.new(std.testing.allocator);
+    defer root.destroy();
+
+    try testing.expect(root.component.children.items.len == 0);
+
+    var text = ui.Text.new("Hello");
+    _ = try text.getComponent(std.testing.allocator, &root.component);
+
+    try testing.expect(root.component.children.items.len == 1);
+
+    const _text: *const ui.Text = @alignCast(@ptrCast(root.component.children.items[0].context));
+    try testing.expect(std.mem.eql(u8, _text.text, "Hello"));
 }

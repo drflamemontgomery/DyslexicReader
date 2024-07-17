@@ -1,38 +1,51 @@
 text: []const u8,
+component: ?Component = null,
 
-pub fn new(allocator:std.mem.Allocator, parent: ?*AnyComponent, text: []const u8) Component(Self, update, sync) {
-    return .{
-        .context = .{
-            .text = text,
-
-        },
-
-        .parent = parent,
-        .children = std.ArrayList(*AnyComponent).init(allocator),
-        .invalid = true,
-        .pos = .{
-            .x = 0,
-            .y = 0
-        },
-        .size = .{
-            .width = 100,
-            .height = 20,
-        },
+pub fn new( text: []const u8) Self {
+    return Self{
+        .text = text,
     };
 }
 
-pub fn update(self: *Self) anyerror!void {
-    std.debug.print("[Text]: '{s}'\n", .{self.text});
+pub fn getComponent(self: *Self, allocator: std.mem.Allocator, parent: ?*Component) !Component {
+    if(self.component == null) {
+        self.component = Component {
+            .context = @ptrCast(self),
+            .parent = parent,
+            .children = std.ArrayList(*Component).init(allocator),
+            .update = update,
+            .sync = sync,
+        };
+        if(parent) |p| {
+            try p.addChild(&self.component.?);
+        }
+    }
+
+    return self.component.?;
 }
 
-pub fn sync(self: *Self, graphics:*Graphics) anyerror!void {
-    _ = self;
+pub fn update(component: *Component) anyerror!void {
+    const self: *const Self = @alignCast(@ptrCast(component.context));
+    if(component.invalid) {
+        std.debug.print("[Text]: {s}\n", .{self.text});
+        component.invalid = false;
+    }
+}
+
+pub fn sync(component: *Component, graphics: *Graphics) anyerror!void {
+    _ = component;
     _ = graphics;
+}
+
+pub fn destroy(self: *Self) void {
+    if(self.component) |*component| {
+        component.destroy();
+    }
+    self.component = null;
 }
 
 const std = @import("std");
 const ui = @import("ui.zig");
 const Component = ui.Component;
-const AnyComponent = ui.AnyComponent;
 const Graphics = @import("../context.zig").Graphics;
 const Self = @This();
