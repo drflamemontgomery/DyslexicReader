@@ -75,6 +75,7 @@ pub const Graphics = struct {
     }
 
     pub fn resize(self: *Self, width: u32, height: u32) Err!void {
+        if(width == 0 or height == 0) return;
         cairo.destroy(self.ctx);
         self.surface.resize(width, height) catch return Err.FAILED_TO_RESIZE_SURFACE;
         self.ctx = cairo.create(self.surface.surface) orelse return Err.FAILED_TO_CREATE_CAIRO_CONTEXT;

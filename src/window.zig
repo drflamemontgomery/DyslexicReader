@@ -101,12 +101,10 @@ pub const Window = struct {
         self.window.swapBuffers();
         glfw.pollEvents();
 
-        const frame_size = self.window.getFrameSize();
-        const width:u32 = frame_size.right - frame_size.left;
-        const height:u32 = frame_size.bottom - frame_size.top;
-        if(width == self.graphics.surface.width and height == self.graphics.surface.height) return;
-
-        try self.resize(width, height);
+        const frame_size = self.window.getFramebufferSize();
+        if(frame_size.width == self.graphics.surface.width and frame_size.height == self.graphics.surface.height) return;
+        std.debug.print("{} {}\n", .{frame_size.width, frame_size.height});
+        try self.resize(frame_size.width, frame_size.height);
     }
 
     pub fn shouldClose(self: Self) bool {

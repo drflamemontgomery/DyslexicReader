@@ -15,6 +15,7 @@ pub fn main() !void {
 
     var window = try Window.new(arena, "Dyslexic Reader", 1024, 786);
     defer window.destroy();
+    try window.resize(1024, 786);
 
     try mainLoop(arena, &window);
 }
