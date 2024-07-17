@@ -29,13 +29,15 @@ pub fn build(b: *std.Build) void {
     exe.linkSystemLibrary("cairo");
     exe.linkLibC();
 
-    exe.root_module.addAnonymousImport("glfw", .{
-       .root_source_file = b.path("lib/glfw.zig"), 
-    });
     exe.root_module.addAnonymousImport("cairo", .{
        .root_source_file = b.path("lib/cairo.zig"), 
     });
     
+    const glfw_dep = b.dependency("mach_glfw", .{
+        .target = target,
+        .optimize = optimize,
+    });
+
     const gl_bindings = @import("zigglgen").generateBindingsModule(b, .{
         .api = .gl,
         .version = .@"2.0",
@@ -45,6 +47,7 @@ pub fn build(b: *std.Build) void {
     // ./generator gl 4.1 core ARB_multi_bind
 
     exe.root_module.addImport("gl", gl_bindings);
+    exe.root_module.addImport("glfw", glfw_dep.module("mach-glfw"));
     // This declares intent for the executable to be installed into the
     // standard location when the user invokes the "install" step (the default
     // step when running `zig build`).

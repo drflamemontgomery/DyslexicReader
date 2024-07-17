@@ -15,30 +15,25 @@ pub const Window = struct {
     const Self = @This();
     var current: ?*Self = null;
 
-    pub const pollEvents = glfw.pollEvents;
-
-    window: *glfw.Window,
+    window: glfw.Window,
     graphics: context.Graphics,
 
     pub fn init() Err!void {
-        if (glfw.init() == 0) return Err.FAILED_TO_INITIALIZE_GLFW;
+        if (!glfw.init(.{})) return Err.FAILED_TO_INITIALIZE_GLFW;
     }
 
-    pub fn new(allocator: std.mem.Allocator, title: []const u8, width: i32, height: i32) !Self {
-        glfw.windowHint(glfw.RESIZABLE, glfw.TRUE);
-        glfw.windowHint(glfw.AUTO_ICONIFY, glfw.TRUE);
-        glfw.windowHint(glfw.SAMPLES, 4);
-        glfw.windowHint(glfw.CONTEXT_VERSION_MAJOR, 2);
-        glfw.windowHint(glfw.CONTEXT_VERSION_MINOR, 0);
-        glfw.windowHint(glfw.DECORATED, glfw.FALSE);
-
-        _ = glfw.setErrorCallback(onGlfwError);
-
-        const window: *glfw.Window = glfw.createWindow(width, height, &title[0], null, null) orelse return Err.FAILED_TO_CREATE_WINDOW;
-        errdefer glfw.destroyWindow(window);
+    pub fn new(allocator: std.mem.Allocator, title: [*:0]const u8, width: u32, height: u32) !Self {
+        const window = glfw.Window.create(width, height, title, null, null, .{
+            .decorated = false,
+            .context_version_major = 2,
+            .context_version_minor = 0,
+            .samples = 4,
+            .auto_iconify = true,   
+        }) orelse return Err.FAILED_TO_CREATE_WINDOW;
+        errdefer window.destroy();
 
         glfw.makeContextCurrent(window);
-        glfw.setInputMode(window, glfw.STICKY_KEYS, gl.TRUE);
+        window.setInputModeStickyKeys(true);
 
 
         if (!gl_procs.init(glfw.getProcAddress)) return error.FAILED_TO_INITIALIZE_OPENGL;
@@ -58,20 +53,7 @@ pub const Window = struct {
         return self;
     }
 
-    pub fn makeCurrent(self: ?*Self) void {
-        current = self;
-        var window: ?*glfw.Window = undefined;
-        if(self) |this| {
-            window = this.window;
-        }
-
-        glfw.makeContextCurrent(window);
-        glfw.setInputMode(window, glfw.STICKY_KEYS, gl.TRUE);
-        
-        _ = glfw.setFramebufferSizeCallback(window, onResize);
-    }
-
-    pub fn resize(self: *Self, width: i32, height: i32) !void {
+    pub fn resize(self: *Self, width: u32, height: u32) !void {
         gl.Viewport(0, 0, width, height);
         gl.MatrixMode(gl.PROJECTION);
         gl.LoadIdentity();
@@ -88,7 +70,7 @@ pub const Window = struct {
         try self.graphics.resize(width, height);
     }
 
-    pub fn render(self: Self) void {
+    pub fn update(self: Self) void {
         gl.MatrixMode(gl.MODELVIEW);
         gl.LoadIdentity();
         gl.Clear(gl.COLOR_BUFFER_BIT);
@@ -96,7 +78,7 @@ pub const Window = struct {
         gl.PushMatrix();
 
         gl.BindTexture(gl.TEXTURE_RECTANGLE_ARB, _internal_texture_id);
-        gl.TexImage2D(gl.TEXTURE_RECTANGLE_ARB, 0, gl.RGBA, self.graphics.surface.width, self.graphics.surface.height, 0, gl.BGRA, gl.UNSIGNED_BYTE, @ptrCast(&self.graphics.surface.data[0]));
+        gl.TexImage2D(gl.TEXTURE_RECTANGLE_ARB, 0, gl.RGBA, @intCast(self.graphics.surface.width), @intCast(self.graphics.surface.height), 0, gl.BGRA, gl.UNSIGNED_BYTE, @ptrCast(&self.graphics.surface.data[0]));
 
         gl.Color3f(0, 1, 0);
         gl.Begin(gl.QUADS);
@@ -116,18 +98,16 @@ pub const Window = struct {
         gl.End();
 
         gl.PopMatrix();
-    }
-
-    pub fn swapBuffers(self: Self) void {
-        glfw.swapBuffers(self.window);
+        self.window.swapBuffers();
+        glfw.pollEvents();
     }
 
     pub fn shouldClose(self: Self) bool {
-        return glfw.windowShouldClose(self.window) != 0;
+        return self.window.shouldClose();
     }
 
     pub fn destroy(self: Self) void {
-        glfw.destroyWindow(self.window);
+        self.window.destroy();
     }
 
     pub fn terminate() void {

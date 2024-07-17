@@ -10,14 +10,14 @@ pub const ImageSurface = struct {
     allocator: std.mem.Allocator,
     surface: *cairo.Surface,
     data: []u32,
-    width: i32,
-    height: i32,
+    width: u32,
+    height: u32,
 
-    pub fn new(allocator: std.mem.Allocator, width: i32, height: i32) !Self {
+    pub fn new(allocator: std.mem.Allocator, width: u32, height: u32) !Self {
         const data = try allocator.alloc(u32, @intCast(width * height));
         errdefer allocator.free(data);
 
-        const surface = cairo.imageSurfaceCreateForData(@ptrCast(&data[0]), cairo.FORMAT_ARGB32, width, height, 4 * width) orelse return Err.FAILED_TO_CREATE_SURFACE;
+        const surface = cairo.imageSurfaceCreateForData(@ptrCast(&data[0]), cairo.FORMAT_ARGB32, @intCast(width), @intCast(height), @intCast(4 * width)) orelse return Err.FAILED_TO_CREATE_SURFACE;
         return Self{
             .allocator = allocator,
             .surface = surface,
@@ -27,7 +27,7 @@ pub const ImageSurface = struct {
         };
     }
 
-    pub fn resize(self: *Self, width: i32, height: i32) !void {
+    pub fn resize(self: *Self, width: u32, height: u32) !void {
         self.width = width;
         self.height = height;
         self.destroy();
@@ -57,7 +57,7 @@ pub const Graphics = struct {
     _surface: []ImageSurface,
     surface: *ImageSurface,
 
-    pub fn new(allocator: std.mem.Allocator, width: i32, height: i32) !Self {
+    pub fn new(allocator: std.mem.Allocator, width: u32, height: u32) !Self {
         const _surface = try allocator.alloc(ImageSurface, 1);
         const surface = &_surface[0];
         surface.* = try ImageSurface.new(allocator, width, height);
@@ -72,7 +72,7 @@ pub const Graphics = struct {
         };
     }
 
-    pub fn resize(self: *Self, width: i32, height: i32) Err!void {
+    pub fn resize(self: *Self, width: u32, height: u32) Err!void {
         cairo.destroy(self.ctx);
         self.surface.resize(width, height) catch return Err.FAILED_TO_RESIZE_SURFACE;
         self.ctx = cairo.create(self.surface.surface) orelse return Err.FAILED_TO_CREATE_CAIRO_CONTEXT;

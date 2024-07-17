@@ -16,9 +16,6 @@ pub fn main() !void {
     var window = try Window.new(arena, "Dyslexic Reader", 1024, 786);
     defer window.destroy();
 
-    // Make our window collect the current events
-    window.makeCurrent();
-
     try mainLoop(arena, &window);
 }
 
@@ -32,8 +29,6 @@ fn mainLoop(allocator: std.mem.Allocator, window: *Window) !void {
         window.graphics.rectangle(32, 32, 32, 32);
         window.graphics.fill();
 
-        window.render();
-        window.swapBuffers();
-        Window.pollEvents();
+        window.update();
     }
 }
