@@ -13,30 +13,28 @@ pub fn main() !void {
     try Window.init();
     defer Window.terminate();
 
-    var window = try Window.new(arena, "Dyslexic Reader", 1024, 786);
+    var window = try Window.new(arena, "Dyslexic Reader", 1024, 768);
     defer window.destroy();
-    try window.resize(1024, 786);
+    try window.resize(1024, 768);
+
+    Window.current = &window;
 
     try mainLoop(arena, &window);
 }
 
 fn mainLoop(allocator: std.mem.Allocator, window: *Window) !void {
     const ui = @import("ui/ui.zig");
-    var text = ui.Text.new("Hello World!");
+
+    var text = try ui.Text.new(allocator, "Hello World!");
     _ = try text.getComponent(allocator, &window.ctx.component);
 
-    var text2 = ui.Text.new("Tryial!");
+    var text2 = try ui.Text.new(allocator, "Tryial!");
     _ = try text2.getComponent(allocator, &window.ctx.component);
 
     text.destroy();
 
     while (!window.shouldClose()) {
-        window.graphics.setSourceRGB(0, 0, 0);
-        window.graphics.clear();
 
-        window.graphics.setSourceRGB(1, 0, 0);
-        window.graphics.rectangle(32, 32, 32, 32);
-        window.graphics.fill();
 
         try window.update();
     }

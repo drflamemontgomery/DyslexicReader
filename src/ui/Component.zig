@@ -8,6 +8,7 @@ size: ?Size(f32) = null,
 
 update: *const fn (*Self) anyerror!void,
 sync: *const fn (*Self, *context.Graphics) anyerror!void,
+remove: ?*const fn (*Self) anyerror!void = null,
 
 pub fn addChild(self: *Self, child: *Self) !void {
     try self.children.append(child);
@@ -36,6 +37,19 @@ pub fn destroy(self: *Self) void {
         child.destroy();
     }
     self.children.deinit();
+
+    if (self.remove) |remove| {
+        remove(self) catch |err| {
+            std.debug.print("Component Context failed to destroy due to '{}'", .{err});
+        };
+    }
+}
+
+pub fn invalidate(self: *Self) void {
+    self.invalid = true;
+    for (self.children.items) |child| {
+        child.invalidate();
+    }
 }
 
 const std = @import("std");

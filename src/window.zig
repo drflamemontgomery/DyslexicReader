@@ -3,6 +3,7 @@ const glfw = @import("glfw");
 const gl = @import("gl");
 const context = @import("context.zig");
 const ui = @import("ui/ui.zig");
+const ft = @import("ft.zig");
 
 var _internal_texture_id: c_uint = 0;
 var gl_procs: gl.ProcTable = undefined;
@@ -14,11 +15,12 @@ pub const Window = struct {
         FAILED_TO_INITIALIZE_OPENGL,
     };
     const Self = @This();
-    var current: ?*Self = null;
+    pub var current: ?*Self = null;
 
     window: glfw.Window,
     ctx: context.Context,
     graphics: context.Graphics,
+    font_lib: ft.Library,
 
     pub fn init() Err!void {
         if (!glfw.init(.{})) return Err.FAILED_TO_INITIALIZE_GLFW;
@@ -30,13 +32,12 @@ pub const Window = struct {
             .context_version_major = 2,
             .context_version_minor = 0,
             .samples = 4,
-            .auto_iconify = true,   
+            .auto_iconify = true,
         }) orelse return Err.FAILED_TO_CREATE_WINDOW;
         errdefer window.destroy();
 
         glfw.makeContextCurrent(window);
         window.setInputModeStickyKeys(true);
-
 
         if (!gl_procs.init(glfw.getProcAddress)) return error.FAILED_TO_INITIALIZE_OPENGL;
         gl.makeProcTableCurrent(&gl_procs);
@@ -45,13 +46,20 @@ pub const Window = struct {
         gl.Enable(gl.BLEND);
         gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
         gl.Enable(gl.TEXTURE_RECTANGLE_ARB);
-    
+
         const graphics = try context.Graphics.new(allocator, width, height);
-        const ctx = try context.Context.new(allocator);
+        errdefer graphics.destroy();
+
+        const ctx = context.Context.new(allocator);
+
+        const font_lib = try ft.Library.init();
+        errdefer font_lib.destroy();
+
         const self = Self{
             .window = window,
             .ctx = ctx,
             .graphics = graphics,
+            .font_lib = font_lib,
         };
 
         return self;
@@ -105,12 +113,16 @@ pub const Window = struct {
         self.window.swapBuffers();
         glfw.pollEvents();
 
-        try context.Context.update(&self.ctx.component);
-
         const frame_size = self.window.getFramebufferSize();
-        if(frame_size.width == self.graphics.surface.width and frame_size.height == self.graphics.surface.height) return;
-        std.debug.print("{} {}\n", .{frame_size.width, frame_size.height});
-        try self.resize(frame_size.width, frame_size.height);
+        if (frame_size.width != self.graphics.surface.width or frame_size.height != self.graphics.surface.height) {
+            std.debug.print("{} {}\n", .{ frame_size.width, frame_size.height });
+            try self.resize(frame_size.width, frame_size.height);
+
+            self.ctx.component.invalidate();
+        }
+
+        try context.Context.update(&self.ctx.component);
+        try context.Context.sync(&self.ctx.component, &self.graphics);
     }
 
     pub fn shouldClose(self: Self) bool {
@@ -124,18 +136,9 @@ pub const Window = struct {
     pub fn terminate() void {
         glfw.terminate();
     }
-
-    fn onResize(win: ?*glfw.Window, width: c_int, height: c_int) callconv(.C) void {
-        _ = win;
-        if (current == null) return;
-        current.?.resize(width, height) catch |err| {
-            std.debug.print("error: {}", .{err});
-        };
-    }
 };
 
 fn onGlfwError(code: c_int, message: [*c]const u8) callconv(.C) void {
     _ = code;
     std.debug.print("{s}\n", .{message});
 }
-

@@ -29,11 +29,21 @@ pub const Context = struct {
         }
     }
 
-    pub fn sync(component: *Component, graphics: *Graphics) anyerror!void {
+    pub fn _sync(component: *Component, graphics: *Graphics) anyerror!void {
         for (component.children.items) |child| {
             try child.sync(child, graphics);
-            try sync(child, graphics);
+            try _sync(child, graphics);
         }
+    }
+
+    pub fn sync(component: *Component, graphics: *Graphics) anyerror!void {
+        if (component.invalid) {
+            graphics.setSourceRGB(0, 0, 0);
+            graphics.clear();
+            component.invalid = false;
+        }
+
+        try _sync(component, graphics);
     }
 
     pub fn destroy(self: *Self) void {
@@ -86,12 +96,15 @@ pub const ImageSurface = struct {
     }
 };
 
+const ft = @import("ft.zig");
+
 pub const Graphics = struct {
     const Self = @This();
     const Err = error{
         FAILED_TO_CREATE_CAIRO_CONTEXT,
         FAILED_TO_RESIZE_SURFACE,
     };
+    var FontLib:?ft.Library = null;
 
     allocator: std.mem.Allocator,
     ctx: *cairo.Context,
@@ -142,6 +155,25 @@ pub const Graphics = struct {
     pub fn fill(self: Self) void {
         cairo.fill(self.ctx);
     }
+
+    pub fn setFontFace(self: Self, font_face:*ft.Face) void {
+        cairo.setFontFace(self.ctx, @ptrCast(font_face));
+    }
+
+    pub fn showGlyphs(self: Self, glyphs: []ft.Glyph) !void {
+        const glyph_array: []cairo.Glyph = try self.allocator.alloc(cairo.Glyph, glyphs.len);
+        defer self.allocator.free(glyph_array);
+
+        for(glyphs, 0..) |glyph, i| {
+            glyph_array[i] = .{
+                .x = glyph.x,
+                .y = glyph.y,
+                .index = glyph.index,
+            };
+        }
+
+        cairo.showGlyphs(self.ctx, @ptrCast(glyph_array), @intCast(glyphs.len));
+    }
 };
 
 const testing = @import("std").testing;
@@ -160,25 +192,40 @@ test "resize_graphics" {
 }
 
 test "create_root_component" {
+    var graphics = try Graphics.new(std.testing.allocator, 320, 320);
+    defer graphics.destroy();
+
     var root = Context.new(std.testing.allocator);
     defer root.destroy();
 
     try testing.expect(root.component.children.items.len == 0);
+
+    try Context.update(&root.component);
+    try Context.sync(&root.component, &graphics);
 }
 
 test "create_text_components" {
     const ui = @import("ui/ui.zig");
+    _ = try ft.Library.init();
+
+    var graphics = try Graphics.new(std.testing.allocator, 320, 320);
+    defer graphics.destroy();
 
     var root = Context.new(std.testing.allocator);
     defer root.destroy();
 
     try testing.expect(root.component.children.items.len == 0);
 
-    var text = ui.Text.new("Hello");
+    var text = try ui.Text.new(std.testing.allocator, "Hello");
     _ = try text.getComponent(std.testing.allocator, &root.component);
 
     try testing.expect(root.component.children.items.len == 1);
 
     const _text: *const ui.Text = @alignCast(@ptrCast(root.component.children.items[0].context));
     try testing.expect(std.mem.eql(u8, _text.text, "Hello"));
+
+    std.debug.print("{any}\n", .{_text.glyphs});
+
+    try Context.update(&root.component);
+    try Context.sync(&root.component, &graphics);
 }
