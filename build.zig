@@ -27,12 +27,13 @@ pub fn build(b: *std.Build) void {
     exe.linkSystemLibrary("glfw3");
     exe.linkSystemLibrary("GL");
     exe.linkSystemLibrary("cairo");
+    exe.linkSystemLibrary("freetype");
     exe.linkLibC();
 
     exe.root_module.addAnonymousImport("cairo", .{
-       .root_source_file = b.path("lib/cairo.zig"), 
+        .root_source_file = b.path("lib/cairo.zig"),
     });
-    
+
     const glfw_dep = b.dependency("mach_glfw", .{
         .target = target,
         .optimize = optimize,
@@ -41,7 +42,7 @@ pub fn build(b: *std.Build) void {
     const gl_bindings = @import("zigglgen").generateBindingsModule(b, .{
         .api = .gl,
         .version = .@"2.0",
-        .extensions = &.{.ARB_multi_bind, .ARB_compatibility, .ARB_multitexture, .EXT_texture, .ARB_texture_rectangle},
+        .extensions = &.{ .ARB_multi_bind, .ARB_compatibility, .ARB_multitexture, .EXT_texture, .ARB_texture_rectangle },
     });
 
     // ./generator gl 4.1 core ARB_multi_bind
@@ -83,12 +84,13 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
-    
+
     exe_unit_tests.root_module.addAnonymousImport("cairo", .{
         .root_source_file = b.path("lib/cairo.zig"),
     });
 
     exe_unit_tests.linkSystemLibrary("cairo");
+    exe_unit_tests.linkSystemLibrary("freetype");
     exe_unit_tests.linkLibC();
 
     const run_exe_unit_tests = b.addRunArtifact(exe_unit_tests);
