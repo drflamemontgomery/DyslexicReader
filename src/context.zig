@@ -99,12 +99,7 @@ pub const ImageSurface = struct {
 const ft = @import("ft.zig");
 
 pub const Graphics = struct {
-    const Self = @This();
-    const Err = error{
-        FAILED_TO_CREATE_CAIRO_CONTEXT,
-        FAILED_TO_RESIZE_SURFACE,
-    };
-    var FontLib:?ft.Library = null;
+    var FontLib: ?ft.Library = null;
 
     allocator: std.mem.Allocator,
     ctx: *cairo.Context,
@@ -124,6 +119,14 @@ pub const Graphics = struct {
             ._surface = _surface,
             .ctx = ctx,
         };
+    }
+
+    pub fn save(self: Self) void {
+        cairo.save(self.ctx);
+    }
+
+    pub fn restore(self: Self) void {
+        cairo.restore(self.ctx);
     }
 
     pub fn resize(self: *Self, width: u32, height: u32) Err!void {
@@ -156,24 +159,169 @@ pub const Graphics = struct {
         cairo.fill(self.ctx);
     }
 
-    pub fn setFontFace(self: Self, font_face:*ft.Face) void {
+    pub fn setFontFace(self: Self, font_face: *ft.Face) void {
         cairo.setFontFace(self.ctx, @ptrCast(font_face));
     }
 
-    pub fn showGlyphs(self: Self, glyphs: []ft.Glyph) !void {
-        const glyph_array: []cairo.Glyph = try self.allocator.alloc(cairo.Glyph, glyphs.len);
-        defer self.allocator.free(glyph_array);
+    pub fn showGlyphs(self: Self, glyphs: []cairo.Glyph) void {
+        cairo.showGlyphs(self.ctx, @ptrCast(glyphs), @intCast(glyphs.len));
+    }
 
-        for(glyphs, 0..) |glyph, i| {
-            glyph_array[i] = .{
-                .x = glyph.x,
-                .y = glyph.y,
-                .index = glyph.index,
+    pub fn showGlyphsRaw(self: Self, glyphs: GlyphArray) void {
+        cairo.showGlyphs(self.ctx, @ptrCast(glyphs), @intCast(glyphs.len));
+    }
+
+    pub fn showGlyphsAt(self: Self, x: f64, y: f64, glyphs: []cairo.Glyph) void {
+        var font_matrix: cairo.Matrix = undefined;
+        cairo.getFontMatrix(self.ctx, &font_matrix);
+
+        var translate_matrix: cairo.Matrix = undefined;
+        cairo.matrixInitTranslate(&translate_matrix, x, y);
+
+        var result: cairo.Matrix = undefined;
+        cairo.matrixMultiply(&result, &font_matrix, &translate_matrix);
+
+        cairo.setFontMatrix(self.ctx, &result);
+        self.showGlyphs(glyphs);
+    }
+
+    pub fn setScaledFont(self: Self, scaled_font: ScaledFont) void {
+        cairo.setScaledFont(self.ctx, scaled_font.scaled_font);
+    }
+
+    const Self = @This();
+    const Err = error{
+        FAILED_TO_CREATE_CAIRO_CONTEXT,
+        FAILED_TO_RESIZE_SURFACE,
+    };
+};
+
+pub const GlyphArray = struct {
+    glyphs: []cairo.Glyph,
+    allocator: std.mem.Allocator,
+
+    pub fn fromGlyphs(allocator: std.mem.Allocator, text: []const u8) !Self {
+        const glyph_array: []cairo.Glyph = try allocator.alloc(cairo.Glyph, text.len);
+
+        return .{
+            .glyphs = glyph_array,
+            .allocator = allocator,
+        };
+    }
+
+    pub fn render(self: Self, graphics: *Graphics) !void {
+        graphics.showGlyphsRaw(self.glyphs);
+    }
+
+    pub fn destroy(self: Self) void {
+        self.allocator.free(self.glyphs);
+    }
+
+    const Self = @This();
+};
+
+pub const ScaledFont = struct {
+    var fonts: ScaledFontHashMap = undefined;
+
+    scaled_font: *cairo.ScaledFont,
+
+    pub fn init(allocator: std.mem.Allocator) void {
+        fonts = ScaledFontHashMap.init(allocator);
+    }
+
+    pub fn deinit() void {
+        fonts.deinit();
+    }
+
+    pub fn get(size: f64, font: []const u8) !Self {
+        if (fonts.contains(.{ size, font })) {
+            std.debug.print("Contains {} {s}\n", .{ size, font });
+            return .{
+                .scaled_font = fonts.get(.{ size, font }).?.ref,
             };
         }
 
-        cairo.showGlyphs(self.ctx, @ptrCast(glyph_array), @intCast(glyphs.len));
+        const face = try ft.Library.current.?.newFace(font, 0);
+        const ft_font = cairo.ftFontFaceCreateForFTFace(face, 0).?;
+        var key: cairo.UserDataKey = undefined;
+        if (cairo.fontFaceSetUserData(ft_font, @ptrCast(&key), face, @ptrCast(&cairo.FT_Done_Face)) != 0) {
+            cairo.fontFaceDestroy(ft_font);
+            _ = cairo.FT_Done_Face(face);
+            return Err.FAILED_TO_CREATE_FACE;
+        }
+        const scaled_font = try Self.new(ft_font, .{ .size = size });
+        try fonts.put(.{ size, font }, .{ .ref = scaled_font.scaled_font });
+        return scaled_font;
     }
+
+    pub fn new(font: ?*cairo.FontFace, options: FontOptions) !Self {
+        var font_matrix: cairo.Matrix = undefined;
+        var ctm: cairo.Matrix = undefined;
+
+        const font_options: *cairo.FontOptions = cairo.fontOptionsCreate() orelse return Err.FAILED_TO_CREATE_SCALED_FONT;
+        defer cairo.fontOptionsDestroy(font_options);
+
+        cairo.matrixInitScale(&font_matrix, @floatCast(options.size), @floatCast(options.size));
+        cairo.matrixInitIdentity(&ctm);
+
+        const scaled_font = cairo.scaledFontCreate(font, &font_matrix, &ctm, font_options) orelse return Err.FAILED_TO_CREATE_SCALED_FONT;
+
+        return .{
+            .scaled_font = scaled_font,
+        };
+    }
+
+    pub fn textToGlyphs(self: Self, x: f64, y: f64, str: []const u8, glyphs: []cairo.Glyph) !usize {
+        var _glyphs: *cairo.Glyph = &glyphs[0];
+        var num_of_glyphs: c_int = @intCast(glyphs.len);
+
+        if (cairo.scaledFontTextToGlyphs(self.scaled_font, @floatCast(x), @floatCast(y), @ptrCast(&str[0]), @intCast(str.len), @ptrCast(&_glyphs), &num_of_glyphs, @ptrFromInt(0), @ptrFromInt(0), @ptrFromInt(0)) != cairo.STATUS_SUCCESS) {
+            return Err.FAILED_TO_CONVERT_TO_GLYPHS;
+        }
+
+        // if num_of_glyphs increased then cairo allocated its own array
+        if (num_of_glyphs > @as(c_int, @intCast(glyphs.len))) {
+            cairo.glyphFree(@ptrCast(_glyphs));
+            return Err.FAILED_TO_CONVERT_TO_GLYPHS;
+        }
+
+        return @intCast(num_of_glyphs);
+    }
+
+    pub fn destroy(self: Self) void {
+        cairo.scaledFontDestroy(self.scaled_font);
+    }
+
+    const Self = @This();
+    const FontOptions = struct {
+        size: f64 = 12,
+    };
+    const Err = error{
+        FAILED_TO_CREATE_SCALED_FONT,
+        FAILED_TO_CONVERT_TO_GLYPHS,
+        FAILED_TO_GET_FONT,
+        FAILED_TO_CREATE_FACE,
+    };
+    const ScaledFontRef = struct {
+        ref: *cairo.ScaledFont,
+    };
+
+    const ScaledFontRefContext = struct {
+        pub fn eql(self: @This(), a: ScaledFontRefKey, b: ScaledFontRefKey, b_index: usize) bool {
+            _ = self;
+            _ = b_index;
+            return a[0] == b[0] and std.array_hash_map.eqlString(a[1], b[1]);
+        }
+
+        pub fn hash(self: @This(), a: ScaledFontRefKey) u32 {
+            _ = self;
+            return @as(u32, @intFromFloat(a[0])) + std.array_hash_map.hashString(a[1]);
+        }
+    };
+
+    const ScaledFontRefKey = struct { f64, []const u8 };
+
+    const ScaledFontHashMap = std.ArrayHashMap(ScaledFontRefKey, ScaledFontRef, ScaledFontRefContext, true);
 };
 
 const testing = @import("std").testing;
