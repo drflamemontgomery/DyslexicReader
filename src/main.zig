@@ -2,12 +2,16 @@ const glfw = @import("glfw");
 const std = @import("std");
 const winapi = @import("window.zig");
 const Window = winapi.Window;
+const ScaledFont = @import("context.zig").ScaledFont;
 
 pub fn main() !void {
     // Setup an ArenaAllocator so we can deallocate everything afterwards
     var arena_state = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena_state.deinit();
     const arena = arena_state.allocator();
+
+    ScaledFont.init(arena);
+    defer ScaledFont.deinit();
 
     // Initialize Our window context
     try Window.init();
