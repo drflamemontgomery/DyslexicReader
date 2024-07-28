@@ -1,10 +1,10 @@
 const std = @import("std");
-const cairo = @import("cairo");
-const Component = @import("ui/ui.zig").Component;
+const cairo = @import("abi").cairo;
+const freetype = @import("abi").freetype;
+const ui = @import("ui/ui.zig");
+const Component = ui.Component;
 
 pub const Context = struct {
-    const Self = @This();
-
     component: Component,
 
     pub fn new(allocator: std.mem.Allocator) Self {
@@ -29,13 +29,6 @@ pub const Context = struct {
         }
     }
 
-    pub fn _sync(component: *Component, graphics: *Graphics) anyerror!void {
-        for (component.children.items) |child| {
-            try child.sync(child, graphics);
-            try _sync(child, graphics);
-        }
-    }
-
     pub fn sync(component: *Component, graphics: *Graphics) anyerror!void {
         if (component.invalid) {
             graphics.setSourceRGB(0, 0, 0);
@@ -49,6 +42,15 @@ pub const Context = struct {
     pub fn destroy(self: *Self) void {
         self.component.destroy();
     }
+
+    fn _sync(component: *Component, graphics: *Graphics) anyerror!void {
+        for (component.children.items) |child| {
+            try child.sync(child, graphics);
+            try _sync(child, graphics);
+        }
+    }
+
+    const Self = @This();
 };
 
 pub const ImageSurface = struct {
@@ -244,9 +246,9 @@ pub const ScaledFont = struct {
         const face = try ft.Library.current.?.newFace(font, 0);
         const ft_font = cairo.ftFontFaceCreateForFTFace(face, 0).?;
         var key: cairo.UserDataKey = undefined;
-        if (cairo.fontFaceSetUserData(ft_font, @ptrCast(&key), face, @ptrCast(&cairo.FT_Done_Face)) != 0) {
+        if (cairo.fontFaceSetUserData(ft_font, @ptrCast(&key), face, @ptrCast(&freetype.FT_Done_Face)) != 0) {
             cairo.fontFaceDestroy(ft_font);
-            _ = cairo.FT_Done_Face(face);
+            _ = freetype.FT_Done_Face(face);
             return Err.FAILED_TO_CREATE_FACE;
         }
         const scaled_font = try Self.new(ft_font, .{ .size = size });
@@ -353,7 +355,6 @@ test "create_root_component" {
 }
 
 test "create_text_components" {
-    const ui = @import("ui/ui.zig");
     _ = try ft.Library.init();
 
     var graphics = try Graphics.new(std.testing.allocator, 320, 320);

@@ -1,5 +1,5 @@
 var initialized: bool = false;
-var face: cairo.FT_Face = undefined;
+var face: freetype.FT_Face = undefined;
 var scaled_font: ScaledFont = undefined;
 var key: cairo.UserDataKey = undefined;
 
@@ -92,7 +92,8 @@ fn _remove(component: *Component) anyerror!void {
 const std = @import("std");
 const ui = @import("ui.zig");
 const ft = @import("../ft.zig");
-const cairo = @import("cairo");
+const cairo = @import("abi").cairo;
+const freetype = @import("abi").freetype;
 const Component = ui.Component;
 const Graphics = @import("../context.zig").Graphics;
 const ScaledFont = @import("../context.zig").ScaledFont;
