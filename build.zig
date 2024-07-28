@@ -30,9 +30,15 @@ pub fn build(b: *std.Build) void {
     exe.linkSystemLibrary("freetype");
     exe.linkLibC();
 
-    exe.root_module.addAnonymousImport("cairo", .{
-        .root_source_file = b.path("lib/cairo.zig"),
+    //exe.root_module.addAnonymousImport("cairo", .{
+    //   .root_source_file = b.path("lib/cairo.zig"),
+    //});
+
+    const abi_module = b.createModule(.{
+        .root_source_file = b.path("lib/lib.zig"),
     });
+
+    exe.root_module.addImport("abi", abi_module);
 
     const glfw_dep = b.dependency("mach_glfw", .{
         .target = target,
