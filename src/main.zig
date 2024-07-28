@@ -1,7 +1,7 @@
 const glfw = @import("glfw");
 const std = @import("std");
-const winapi = @import("window.zig");
-const Window = winapi.Window;
+const ui = @import("ui/ui.zig");
+const Window = @import("window.zig").Window;
 const ScaledFont = @import("context.zig").ScaledFont;
 
 pub fn main() !void {
@@ -10,6 +10,7 @@ pub fn main() !void {
     defer arena_state.deinit();
     const arena = arena_state.allocator();
 
+    // Init our ScaledFont to handle our fonts and sizes.
     ScaledFont.init(arena);
     defer ScaledFont.deinit();
 
@@ -19,6 +20,8 @@ pub fn main() !void {
 
     var window = try Window.new(arena, "Dyslexic Reader", 1024, 768);
     defer window.destroy();
+
+    // resize our window to build our context
     try window.resize(1024, 768);
 
     Window.current = &window;
@@ -27,19 +30,12 @@ pub fn main() !void {
 }
 
 fn mainLoop(allocator: std.mem.Allocator, window: *Window) !void {
-    const ui = @import("ui/ui.zig");
-
     var text = try ui.Text.new(allocator, "Hello World!");
+
+    // Create the Text Component with the Window Component as a parent
     _ = try text.getComponent(allocator, &window.ctx.component);
 
-    var text2 = try ui.Text.new(allocator, "Tryial!");
-    _ = try text2.getComponent(allocator, &window.ctx.component);
-
-    text.destroy();
-
     while (!window.shouldClose()) {
-
-
         try window.update();
     }
 }
