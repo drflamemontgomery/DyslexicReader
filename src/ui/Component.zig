@@ -7,7 +7,7 @@ pos: Position(f32) = .{ .x = 0, .y = 0 },
 size: ?Size(f32) = null,
 
 update: *const fn (*Self) anyerror!void,
-sync: *const fn (*Self, *context.Graphics) anyerror!void,
+sync: *const fn (*Self, *gfx.Graphics) anyerror!void,
 remove: ?*const fn (*Self) anyerror!void = null,
 
 pub fn addChild(self: *Self, child: *Self) !void {
@@ -57,3 +57,4 @@ const context = @import("../context.zig");
 const Self = @This();
 const Position = @import("ui.zig").Position;
 const Size = @import("ui.zig").Size;
+const gfx = @import("../graphics.zig");

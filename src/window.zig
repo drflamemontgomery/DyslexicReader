@@ -2,6 +2,7 @@ const std = @import("std");
 const glfw = @import("glfw");
 const gl = @import("gl");
 const context = @import("context.zig");
+const gfx = @import("graphics.zig");
 const ui = @import("ui/ui.zig");
 const ft = @import("ft.zig");
 
@@ -19,7 +20,7 @@ pub const Window = struct {
 
     window: glfw.Window,
     ctx: context.Context,
-    graphics: context.Graphics,
+    graphics: gfx.Graphics,
     font_lib: ft.Library,
 
     pub fn init() Err!void {
@@ -47,7 +48,7 @@ pub const Window = struct {
         gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
         gl.Enable(gl.TEXTURE_RECTANGLE_ARB);
 
-        const graphics = try context.Graphics.new(allocator, width, height);
+        const graphics = try gfx.Graphics.new(allocator, width, height);
         errdefer graphics.destroy();
 
         const ctx = context.Context.new(allocator);

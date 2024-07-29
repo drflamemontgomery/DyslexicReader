@@ -2,7 +2,7 @@ const glfw = @import("glfw");
 const std = @import("std");
 const ui = @import("ui/ui.zig");
 const Window = @import("window.zig").Window;
-const ScaledFont = @import("context.zig").ScaledFont;
+const ScaledFont = @import("graphics.zig").ScaledFont;
 
 pub fn main() !void {
     // Setup an ArenaAllocator so we can deallocate everything afterwards
