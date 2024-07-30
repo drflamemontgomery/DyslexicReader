@@ -1,7 +1,7 @@
 const glfw = @import("glfw");
 const std = @import("std");
 const ui = @import("ui/ui.zig");
-const Window = @import("window.zig").Window;
+const Window = @import("Window.zig");
 const ScaledFont = @import("graphics.zig").ScaledFont;
 
 pub fn main() !void {

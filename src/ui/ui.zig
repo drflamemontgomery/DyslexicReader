@@ -1,5 +1,5 @@
 const std = @import("std");
-const Graphics = @import("../context.zig").Graphics;
+const Graphics = @import("../graphics.zig").Graphics;
 
 pub fn Position(comptime T: type) type {
     return struct {

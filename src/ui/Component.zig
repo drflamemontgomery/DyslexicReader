@@ -53,8 +53,8 @@ pub fn invalidate(self: *Self) void {
 }
 
 const std = @import("std");
-const context = @import("../context.zig");
-const Self = @This();
 const Position = @import("ui.zig").Position;
 const Size = @import("ui.zig").Size;
 const gfx = @import("../graphics.zig");
+
+const Self = @This();

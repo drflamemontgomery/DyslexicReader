@@ -1,3 +1,4 @@
 comptime {
-    _ = @import("context.zig");
+    _ = @import("Context.zig");
+    _ = @import("graphics.zig");
 }

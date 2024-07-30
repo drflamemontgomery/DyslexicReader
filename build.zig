@@ -95,6 +95,8 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("lib/cairo.zig"),
     });
 
+    exe_unit_tests.root_module.addImport("abi", abi_module);
+
     exe_unit_tests.linkSystemLibrary("cairo");
     exe_unit_tests.linkSystemLibrary("freetype");
     exe_unit_tests.linkLibC();

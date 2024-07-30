@@ -4,13 +4,10 @@ const freetype = @import("abi").freetype;
 const ui = @import("ui/ui.zig");
 const ft = @import("ft.zig");
 
+/// Handler Structure For the Cairo Surface
 pub const ImageSurface = struct {
-    const Self = @This();
-    const Err = error{
-        FAILED_TO_CREATE_SURFACE,
-    };
-
     allocator: std.mem.Allocator,
+    /// Internal Cairo Surface Handle
     surface: *cairo.Surface,
     data: []u32,
     width: u32,
@@ -30,6 +27,8 @@ pub const ImageSurface = struct {
         };
     }
 
+    /// Resizes the Cairo surface handle.
+    /// Handles memory changes
     pub fn resize(self: *Self, width: u32, height: u32) !void {
         if (width == 0 or height == 0) return;
         self.width = width;
@@ -47,8 +46,14 @@ pub const ImageSurface = struct {
         std.c.free(self.surface);
         self.allocator.free(self.data);
     }
+
+    const Self = @This();
+    const Err = error{
+        FAILED_TO_CREATE_SURFACE,
+    };
 };
 
+/// Structure for handling Cairo drawing contexts from an `ImageSurface`
 pub const Graphics = struct {
     var FontLib: ?ft.Library = null;
 
@@ -118,10 +123,6 @@ pub const Graphics = struct {
         cairo.showGlyphs(self.ctx, @ptrCast(glyphs), @intCast(glyphs.len));
     }
 
-    pub fn showGlyphsRaw(self: Self, glyphs: GlyphArray) void {
-        cairo.showGlyphs(self.ctx, @ptrCast(glyphs), @intCast(glyphs.len));
-    }
-
     pub fn showGlyphsAt(self: Self, x: f64, y: f64, glyphs: []cairo.Glyph) void {
         var font_matrix: cairo.Matrix = undefined;
         cairo.getFontMatrix(self.ctx, &font_matrix);
@@ -147,30 +148,6 @@ pub const Graphics = struct {
     };
 };
 
-pub const GlyphArray = struct {
-    glyphs: []cairo.Glyph,
-    allocator: std.mem.Allocator,
-
-    pub fn fromGlyphs(allocator: std.mem.Allocator, text: []const u8) !Self {
-        const glyph_array: []cairo.Glyph = try allocator.alloc(cairo.Glyph, text.len);
-
-        return .{
-            .glyphs = glyph_array,
-            .allocator = allocator,
-        };
-    }
-
-    pub fn render(self: Self, graphics: *Graphics) !void {
-        graphics.showGlyphsRaw(self.glyphs);
-    }
-
-    pub fn destroy(self: Self) void {
-        self.allocator.free(self.glyphs);
-    }
-
-    const Self = @This();
-};
-
 pub const ScaledFont = struct {
     var fonts: ScaledFontHashMap = undefined;
 
@@ -186,7 +163,6 @@ pub const ScaledFont = struct {
 
     pub fn get(size: f64, font: []const u8) !Self {
         if (fonts.contains(.{ size, font })) {
-            std.debug.print("Contains {} {s}\n", .{ size, font });
             return .{
                 .scaled_font = fonts.get(.{ size, font }).?.ref,
             };
@@ -281,3 +257,13 @@ test "create_graphics" {
     const graphics = try Graphics.new(testing.allocator, 640, 640);
     defer graphics.destroy();
 }
+
+test "resize_graphics" {
+    var graphics = try Graphics.new(testing.allocator, 640, 640);
+    defer graphics.destroy();
+
+    try graphics.resize(320, 320);
+    try testing.expect(graphics.surface.width == 320);
+    try testing.expect(graphics.surface.height == 320);
+}
+

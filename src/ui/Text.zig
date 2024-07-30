@@ -8,6 +8,8 @@ text: []const u8,
 glyphs: []cairo.Glyph,
 component: ?Component = null,
 
+/// Create a `Text` object that automatically caches glyphs and allocates 
+/// a font
 pub fn new(allocator: std.mem.Allocator, text: []const u8) !Self {
     if (!initialized) {
         initialized = true;
@@ -18,10 +20,9 @@ pub fn new(allocator: std.mem.Allocator, text: []const u8) !Self {
     errdefer allocator.free(glyphs);
 
     const glyph_len = try scaled_font.textToGlyphs(0, 0, text, glyphs);
-    if(glyph_len != glyphs.len) {
+    if (glyph_len != glyphs.len) {
         glyphs = try allocator.realloc(glyphs, glyph_len);
     }
-
 
     return Self{
         .text = text,
@@ -60,7 +61,6 @@ pub fn sync(component: *Component, graphics: *Graphics) anyerror!void {
     if (!component.invalid) return;
     component.invalid = false;
 
-
     const pos: ui.Position(f32) = component.pos;
     const size: ui.Size(f32) = component.size orelse .{ .width = 100, .height = 20 };
 
@@ -70,12 +70,12 @@ pub fn sync(component: *Component, graphics: *Graphics) anyerror!void {
 
     graphics.setScaledFont(scaled_font);
     graphics.setSourceRGB(1, 0, 0);
-    graphics.showGlyphsAt(pos.x, pos.y+size.height, self.glyphs);
+    graphics.showGlyphsAt(pos.x, pos.y + size.height, self.glyphs);
     graphics.fill();
 }
 
 pub fn destroy(self: *Self) void {
-    if(self.component) |*component| {
+    if (self.component) |*component| {
         component.destroy();
     } else {
         self.allocator.free(self.glyphs);
@@ -95,10 +95,10 @@ const ft = @import("../ft.zig");
 const cairo = @import("abi").cairo;
 const freetype = @import("abi").freetype;
 const Component = ui.Component;
-const Graphics = @import("../context.zig").Graphics;
-const ScaledFont = @import("../context.zig").ScaledFont;
-const Self = @This();
+const Graphics = @import("../graphics.zig").Graphics;
+const ScaledFont = @import("../graphics.zig").ScaledFont;
 
+const Self = @This();
 const Err = error{
     FAILED_TO_CREATE_FACE,
 };
