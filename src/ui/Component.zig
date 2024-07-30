@@ -5,6 +5,7 @@ invalid: bool = true,
 
 pos: Position(f32) = .{ .x = 0, .y = 0 },
 size: ?Size(f32) = null,
+calculatedSize: Size(f32) = .{ .width = 0, .height = 0 },
 
 update: *const fn (*Self) anyerror!void,
 sync: *const fn (*Self, *gfx.Graphics) anyerror!void,

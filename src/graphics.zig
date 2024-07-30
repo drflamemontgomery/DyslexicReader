@@ -215,6 +215,12 @@ pub const ScaledFont = struct {
         return @intCast(num_of_glyphs);
     }
 
+    pub fn getTextExtents(self: Self, text: []const u8) cairo.TextExtents {
+        var extents: cairo.TextExtents = undefined;
+        cairo.scaledFontTextExtents(self.scaled_font, @ptrCast(text), @ptrCast(&extents));
+        return extents;
+    }
+
     pub fn destroy(self: Self) void {
         cairo.scaledFontDestroy(self.scaled_font);
     }
@@ -251,6 +257,68 @@ pub const ScaledFont = struct {
     const ScaledFontHashMap = std.ArrayHashMap(ScaledFontRefKey, ScaledFontRef, ScaledFontRefContext, true);
 };
 
+pub const GlyphCache = struct {
+    allocator: std.mem.Allocator,
+    glyphs: []cairo.Glyph,
+    utf8_text: []const u8,
+    font: []const u8,
+    size: f64,
+    width: f64,
+    height: f64,
+
+    pub fn new(allocator: std.mem.Allocator, utf8_text: []const u8, font: []const u8, size: f64) !Self {
+        const scaled_font = try ScaledFont.get(size, font);
+
+        const glyphs: []cairo.Glyph = try allocator.alloc(cairo.Glyph, utf8_text.len);
+        errdefer allocator.free(glyphs);
+
+        _ = try scaled_font.textToGlyphs(0, 0, utf8_text, glyphs);
+        var self = Self{
+            .allocator = allocator,
+            .glyphs = glyphs,
+            .utf8_text = utf8_text,
+            .font = font,
+            .size = size,
+            .width = 0,
+            .height = 0,
+        };
+        self.calculateSize();
+
+        return self;
+    }
+
+    pub fn setFont(self: *Self, font: []const u8) !void {
+        const scaled_font = try ScaledFont.get(self.size, font);
+        _ = try scaled_font.textToGlyphs(0, 0, self.utf8_text, self.glyphs);
+
+        self.font = font;
+        self.calculateSize();
+    }
+
+    pub fn setSize(self: *Self, size: f64) void {
+        self.size = size;
+        self.calculateSize();
+    }
+
+    fn calculateSize(self: *Self) void {
+        const scaled_font = ScaledFont.get(self.size, self.font) catch |err| {
+            switch (err) {
+                else => return,
+            }
+        };
+        const extents = scaled_font.getTextExtents(self.utf8_text);
+
+        self.width = extents.width;
+        self.height = extents.height;
+    }
+
+    pub fn destroy(self: Self) void {
+        self.allocator.free(self.glyphs);
+    }
+
+    const Self = @This();
+};
+
 const testing = @import("std").testing;
 
 test "create_graphics" {
@@ -266,4 +334,3 @@ test "resize_graphics" {
     try testing.expect(graphics.surface.width == 320);
     try testing.expect(graphics.surface.height == 320);
 }
-

@@ -91,7 +91,7 @@ test "create_text_components" {
 
     try testing.expect(root.component.children.items.len == 0);
 
-    var text = try ui.Text.new(std.testing.allocator, "Hello");
+    var text = try ui.Text.new(std.testing.allocator, "Hello", .{});
     _ = try text.getComponent(std.testing.allocator, &root.component);
 
     try testing.expect(root.component.children.items.len == 1);

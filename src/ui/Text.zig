@@ -1,28 +1,13 @@
-var initialized: bool = false;
-var face: freetype.FT_Face = undefined;
-var scaled_font: ScaledFont = undefined;
-var key: cairo.UserDataKey = undefined;
-
 allocator: std.mem.Allocator,
 text: []const u8,
-glyphs: []cairo.Glyph,
+glyphs: GlyphCache,
+color: ui.Color = .{ .r = 1, .g = 1, .b = 1 },
 component: ?Component = null,
 
-/// Create a `Text` object that automatically caches glyphs and allocates 
+/// Create a `Text` object that automatically caches glyphs and allocates
 /// a font
-pub fn new(allocator: std.mem.Allocator, text: []const u8) !Self {
-    if (!initialized) {
-        initialized = true;
-        scaled_font = try ScaledFont.get(12, "/usr/share/fonts/steam-fonts/arial.ttf");
-    }
-
-    var glyphs: []cairo.Glyph = try allocator.alloc(cairo.Glyph, text.len);
-    errdefer allocator.free(glyphs);
-
-    const glyph_len = try scaled_font.textToGlyphs(0, 0, text, glyphs);
-    if (glyph_len != glyphs.len) {
-        glyphs = try allocator.realloc(glyphs, glyph_len);
-    }
+pub fn new(allocator: std.mem.Allocator, text: []const u8, options: Options) !Self {
+    const glyphs = try GlyphCache.new(allocator, text, options.font, options.size);
 
     return Self{
         .text = text,
@@ -51,9 +36,10 @@ pub fn getComponent(self: *Self, allocator: std.mem.Allocator, parent: ?*Compone
 
 pub fn update(component: *Component) anyerror!void {
     const self: *const Self = @alignCast(@ptrCast(component.context));
-    if (component.invalid) {
-        std.debug.print("[Text]: {s}\n", .{self.text});
-    }
+    if (!component.invalid) return;
+    std.debug.print("[Text]: {s}\n", .{self.text});
+    component.calculatedSize.width = @floatCast(self.glyphs.width);
+    component.calculatedSize.height = @floatCast(self.glyphs.height);
 }
 
 pub fn sync(component: *Component, graphics: *Graphics) anyerror!void {
@@ -62,15 +48,10 @@ pub fn sync(component: *Component, graphics: *Graphics) anyerror!void {
     component.invalid = false;
 
     const pos: ui.Position(f32) = component.pos;
-    const size: ui.Size(f32) = component.size orelse .{ .width = 100, .height = 20 };
-
-    graphics.setSourceRGB(1, 1, 1);
-    graphics.rectangle(pos.x, pos.y, size.width, size.height);
-    graphics.fill();
-
+    const scaled_font = try ScaledFont.get(self.glyphs.size, self.glyphs.font);
     graphics.setScaledFont(scaled_font);
-    graphics.setSourceRGB(1, 0, 0);
-    graphics.showGlyphsAt(pos.x, pos.y + size.height, self.glyphs);
+    graphics.setSourceRGB(self.color.r, self.color.g, self.color.b);
+    graphics.showGlyphsAt(pos.x, pos.y + self.glyphs.height, self.glyphs.glyphs);
     graphics.fill();
 }
 
@@ -86,7 +67,7 @@ fn _remove(component: *Component) anyerror!void {
     const _self: *const Self = @alignCast(@ptrCast(component.context));
     const self: *Self = @constCast(_self);
     self.component = null;
-    self.allocator.free(self.glyphs);
+    self.glyphs.destroy();
 }
 
 const std = @import("std");
@@ -97,8 +78,13 @@ const freetype = @import("abi").freetype;
 const Component = ui.Component;
 const Graphics = @import("../graphics.zig").Graphics;
 const ScaledFont = @import("../graphics.zig").ScaledFont;
+const GlyphCache = @import("../graphics.zig").GlyphCache;
 
 const Self = @This();
 const Err = error{
     FAILED_TO_CREATE_FACE,
+};
+const Options = struct {
+    font: []const u8 = "/usr/share/fonts/steam-fonts/arial.ttf",
+    size: f64 = 12,
 };

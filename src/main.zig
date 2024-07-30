@@ -30,7 +30,9 @@ pub fn main() !void {
 }
 
 fn mainLoop(allocator: std.mem.Allocator, window: *Window) !void {
-    var text = try ui.Text.new(allocator, "Hello World!");
+    var text = try ui.Text.new(allocator, "Hello World!", .{});
+    text.color = ui.Color.fromHSV(50, 0.79, 0.8);
+    text.color.printHex();
 
     // Create the Text Component with the Window Component as a parent
     _ = try text.getComponent(allocator, &window.ctx.component);

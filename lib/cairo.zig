@@ -10,6 +10,7 @@ pub const Matrix = abi.cairo_matrix_t;
 pub const FontOptions = abi.cairo_font_options_t;
 pub const TextClusters = abi.cairo_text_cluster_t;
 pub const TextClusterFlags = abi.cairo_text_cluster_flags_t;
+pub const TextExtents = abi.cairo_text_extents_t;
 
 pub const create = abi.cairo_create;
 pub const destroy = abi.cairo_destroy;
@@ -26,6 +27,7 @@ pub const setScaledFont = abi.cairo_set_scaled_font;
 pub const scaledFontCreate = abi.cairo_scaled_font_create;
 pub const scaledFontDestroy = abi.cairo_scaled_font_destroy;
 pub const scaledFontTextToGlyphs = abi.cairo_scaled_font_text_to_glyphs;
+pub const scaledFontTextExtents = abi.cairo_scaled_font_text_extents;
 pub const fontOptionsCreate = abi.cairo_font_options_create;
 pub const fontOptionsDestroy = abi.cairo_font_options_destroy;
 pub const matrixInitScale = abi.cairo_matrix_init_scale;
