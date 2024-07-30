@@ -8,6 +8,7 @@ ctx: Context,
 graphics: gfx.Graphics,
 font_lib: ft.Library,
 
+/// Call `Window.init()` before using the Window API
 pub fn init() Err!void {
     if (!glfw.init(.{})) return Err.FAILED_TO_INITIALIZE_GLFW;
 }
@@ -68,6 +69,7 @@ pub fn resize(self: *Self, width: u32, height: u32) !void {
     try self.graphics.resize(width, height);
 }
 
+/// Render the Window and update the UI
 pub fn update(self: *Self) !void {
     gl.MatrixMode(gl.MODELVIEW);
     gl.LoadIdentity();
@@ -118,6 +120,7 @@ pub fn destroy(self: Self) void {
     self.window.destroy();
 }
 
+/// Call `Window.terminate()` to clear resources
 pub fn terminate() void {
     glfw.terminate();
 }
