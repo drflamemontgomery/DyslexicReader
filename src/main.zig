@@ -1,43 +1,30 @@
-const glfw = @import("glfw");
 const std = @import("std");
-const ui = @import("ui/ui.zig");
-const Window = @import("Window.zig");
-const ScaledFont = @import("graphics.zig").ScaledFont;
+const zigui = @import("zig-ui");
+const ui = zigui.ui;
+const App = zigui.App;
 
 pub fn main() !void {
-    // Setup an ArenaAllocator so we can deallocate everything afterwards
-    var arena_state = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-    defer arena_state.deinit();
-    const arena = arena_state.allocator();
+    try App.init();
+    defer App.deinit();
 
-    // Init our ScaledFont to handle our fonts and sizes.
-    ScaledFont.init(arena);
-    defer ScaledFont.deinit();
+    var app = try App.create(.{
+        .title = "Dyslexic Document Reader",
 
-    // Initialize Our window context
-    try Window.init();
-    defer Window.terminate();
+        .init = init,
+        .main_loop = mainLoop,
+    });
+    defer app.destroy();
 
-    var window = try Window.new(arena, "Dyslexic Reader", 1024, 768);
-    defer window.destroy();
-
-    // resize our window to build our context
-    try window.resize(1024, 768);
-
-    Window.current = &window;
-
-    try mainLoop(arena, &window);
+    try app.run();
 }
 
-fn mainLoop(allocator: std.mem.Allocator, window: *Window) !void {
-    var text = try ui.Text.new(allocator, "Hello World!", .{});
+var text:ui.Text = undefined;
+fn init(app: *App) anyerror!void {
+    text = try ui.Text.new(App.arena, "Hello World!", .{});
     text.color = ui.Color.fromHSV(50, 0.79, 0.8);
-    text.color.printHex();
+    _ = try text.getComponent(App.arena, &app.window.ctx.component);
+}
 
-    // Create the Text Component with the Window Component as a parent
-    _ = try text.getComponent(allocator, &window.ctx.component);
-
-    while (!window.shouldClose()) {
-        try window.update();
-    }
+fn mainLoop(app: *App) anyerror!void {
+    _ = app;
 }
