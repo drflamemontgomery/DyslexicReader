@@ -13,7 +13,7 @@
         },
         .@"zig-ui" = .{
             .url = "zig-ui/",
-            .hash = "1220104a8ab0fe544e422cc8635e0651927d3e0559f05bbd6b510743074007af41fe",
+            .hash = "1220c7866be409cafef1c7152fd4e34a90570e3ce9c4c9f56167d72e55e6e4a013fd",
         },
     },
     .paths = .{
